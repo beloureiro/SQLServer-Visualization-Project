@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Visualização de Dados</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script>
+        // Objeto para armazenar os dados das tabelas
+        let tableData = {};
+
+        // Função para atualizar as tabelas com base no esquema selecionado
+        function updateTables() {
+            const schemaSelect = document.getElementById('schemaSelect');
+            const tableSelect = document.getElementById('tableSelect');
+            const selectedSchema = schemaSelect.value;
+
+            console.log("Schema selecionado:", selectedSchema);
+
+            // Limpa as opções de tabela
+            tableSelect.innerHTML = '<option value="">Selecione uma Tabela</option>';
+
+            // Adiciona as tabelas correspondentes ao esquema selecionado
+            if (tableData[selectedSchema]) {
+                tableData[selectedSchema].forEach(table => {
+                    const option = document.createElement('option');
+                    option.value = table;
+                    option.textContent = table;
+                    tableSelect.appendChild(option);
+                });
+            }
+        }
+
+        // Função para inicializar os dados das tabelas
+        function initializeTableData(data) {
+            tableData = data;
+            console.log("Dados da tabela inicializados:", tableData);
+        }
+    </script>
+</head>
+<body class="bg-gray-900 text-white">
+    <div class="container mx-auto p-4">
+        <h1 class="text-2xl font-bold mb-4">Visualização de Dados</h1>
+        <form method="POST" action="/view">
+            <select id="schemaSelect" name="schema_name" onchange="updateTables()" class="bg-gray-800 text-white border border-gray-600 rounded p-2 mb-4">
+                <option value="">Selecione um Esquema</option>
+                {% for schema in schemas %}
+                    <option value="{{ schema }}">{{ schema }}</option>
+                {% endfor %}
+            </select>
+
+            <select id="tableSelect" name="table_name" class="bg-gray-800 text-white border border-gray-600 rounded p-2 mb-4">
+                <option value="">Selecione uma Tabela</option>
+                <!-- As opções de tabela serão preenchidas via JavaScript -->
+            </select>
+
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Ver</button>
+        </form>
+
+        {% if error is defined %}
+            <div style="color: red;">
+                <strong>Erro:</strong> {{ error }}
+            </div>
+        {% endif %}
+
+        {% if data is defined and not data.empty %}
+            <h2>Dados da Tabela</h2>
+            <table class="min-w-full bg-gray-800 mt-4">
+                <thead>
+                    <tr>
+                        {% for col in data.columns %}
+                            <th class="py-2 px-4 border-b border-gray-600">{{ col }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for _, row in data.iterrows() %}
+                        <tr class="hover:bg-gray-700">
+                            {% for value in row %}
+                                <td class="py-2 px-4 border-b border-gray-600">{{ value }}</td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            {% if image_file is defined %}
+                <h2>Gráfico da Tabela</h2>
+                <img src="{{ url_for('static', filename='plot.png') }}" alt="Gráfico">
+            {% endif %}
+        {% endif %}
+
+        <script>
+            // Testa a saída JSON
+            const data = {
+                "HumanResources": ["Employee", "Department"],
+                "Production": ["Product", "Supplier"],
+                // outros esquemas e tabelas
+            };
+            initializeTableData(data);
+
+            document.getElementById('schemaSelect').addEventListener('change', function() {
+                const schemaName = this.value;
+                fetch('/get_tables', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 'schema_name=' + schemaName
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const tableSelect = document.getElementById('tableSelect');
+                    tableSelect.innerHTML = ''; // Limpa as tabelas anteriores
+                    data.forEach(function(table) {
+                        const option = document.createElement('option');
+                        option.value = table;
+                        option.textContent = table;
+                        tableSelect.appendChild(option);
+                    });
+                });
+            });
+        </script>
+    </div>
+</body>
+</html>
